@@ -1,0 +1,18 @@
+
+Changelog
+=========
+
+Jan 01 2012
+o Rewrote the portctl method
+o Use of a single shared portclt library for all portctl tasks
+o Change of courtesy beep from fmbeep to tones
+o Removal of irlp-port
+o Removal of unneeded source files
+o Cleanup of source files and naming changes to be more intuitive
+o Seperate directories for cwid and repeater with top level makefile
+
+2005
+o Addition of irlpdev
+
+2004
+o Initial build

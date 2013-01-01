@@ -1,0 +1,175 @@
+#!/bin/bash
+#
+# Copyright (c) 2004, Adi Linden <adi@adis.on.ca>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the author nor the names of its contributors may 
+#    be used to endorse or promote products derived from this software 
+#    without specific prior written permission.
+#    
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# ----------------------------------------------------------------------------
+#
+# This script starts and stops the repeater process. It does the start by
+# installing the repeater crontab. It does the stop by removing the
+# repeater crontab and killing the running process.
+#
+# ----------------------------------------------------------------------------
+
+PATH=@@BIN@@:@@SCRIPT@@:$PATH
+export PATH
+
+retv=0
+prog="@@BIN@@/repeater"
+lhost=`hostname`
+crontab="@@SCRIPT@@/repeater_crontab"
+startdly=75
+
+# Make sure we are run by the proper user
+ourid=`id -u`
+repeaterid=`id -u @@USER@@`
+if [ "$ourid" != "0" -a "$ourid" != "$repeaterid" ]; then
+    echo -ne "This script has to be run as \`root' or \`@@USER@@' user. \n"
+    exit 1
+fi
+
+start()
+{
+    # Installing  crontab which starts and monitors process
+    echo -ne "Installing $crontab ... \n"
+    if [ "$ourid" != "0" ]; then
+        crontab $crontab
+    else
+        su - -c "crontab $crontab" @@USER@@
+    fi
+
+    # Report when we're up
+    echo -ne "Waiting for $prog to start ... \n"
+    up
+    retv=$?
+    echo -ne "\n"
+    if [ "$retv" = "0" ]; then
+        echo -ne "$prog (pid ${pid}) is running ... \n"
+    else
+        echo -ne "$prog failed to start ... \n"
+    fi
+}
+
+stop()
+{
+    echo -ne "Stopping $prog ... \n"
+
+    # Removing crontab
+    echo -ne "Removing $crontab ... \n"
+    if [ "$ourid" != "0" ]; then
+        crontab -r
+    else
+        su - -c "crontab -r " @@USER@@
+    fi
+    
+    # Killing the process(es)
+    while [ 1 ]; do
+
+        # Get the pid
+        pid=`getpid -s`
+
+        # Kill the process
+        if [ "$pid" = "" ]; then
+            echo -ne "No more $prog found ... \n"
+            break
+        fi
+
+        echo -ne "Killing $prog (pid $pid) ... \n"
+        kill  -9 "$pid"
+        sleep 1
+    done
+
+    # Set outputs to safe values
+    @@BIN@@/unkey
+    @@BIN@@/mute
+    @@BIN@@/aux4off
+    @@BIN@@/aux5off
+    #@@BIN@@/ctcsson
+}
+    
+status()
+{
+    pid=`getpid -s`
+    if [ "$pid" != "" ]; then
+        pid=`getpid | tr '[:space:]' ' '`
+        echo -ne "$prog (pid $pid) is running ... \n"
+        return 0
+    fi
+    echo -ne "$prog is stopped ... \n"
+    return 1
+}
+
+getpid()
+{
+    # Find the pids for the running process
+    pids=`ps auxww | grep "@@BIN@@/repeater" | grep -v grep | awk '{print $2}'`
+    
+    # Return only one pid if -s supplied
+    if [ "$1" = "-s" ]; then
+        echo "$pids" | head -1
+    else
+        echo "$pids"
+    fi
+}
+
+up()
+{
+    # Wait startdly for the process to start
+    while [ "$startdly" -gt "0" ]; do
+        echo -ne "."
+        pid=`getpid -s`
+        if [ "$pid" != "" ]; then
+            return 0
+        fi
+        sleep 1
+        up=$(( up - 1 ))
+    done
+    return 1
+}
+
+# See how we were called
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  status)
+    status
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status|restart}"
+    exit 1
+esac
+
+exit $?

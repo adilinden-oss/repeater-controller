@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+# Copyright (c) 2013, Adi Linden <adi@adis.on.ca>
+# All rights reserved.
+#   
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions 
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright 
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright 
+#    notice, this list of conditions and the following disclaimer in the 
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the author nor the names of its contributors may 
+#    be used to endorse or promote products derived from this software 
+#    without specific prior written permission.
+#    
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# ----------------------------------------------------------------------------
+#
+# This script does the courtesy beep. It test for different conditions and
+# alters the courtesy tone accordingly. The idea is that the operator can
+# identify repeater status by the courtesy tone.
+#
+# Possible mutually exclusive states (determines `base' tone):
+#
+# Repeater idle (normal)       
+#   tones 784 75 10 1318 75 10 1046 75 10
+#
+# IRLP active (in call) -- add a trailing low dit
+#   tones 784 75 10 1318 75 10 1046 75 120 784 120 20
+#
+# EchoLink active (in call) -- add a trailing high dit
+#   tones 784 75 10 1318 75 10 1046 75 120 1318 120 20
+#
+# Phone patch active -- let's give just a short discrete dit          
+#   tones 1046 75 10
+# 
+# Note: In the future maybe support added tones for special conditions such
+#       as power outages, etc.
+#
+# ----------------------------------------------------------------------------
+
+# Make sure we are user @@USER@@!!!
+if [ `/usr/bin/whoami` != "@@USER@@" ] ; then
+    echo "This program must be run as user @@USER@@!"
+    exit 1
+fi
+
+# Include our binaries and scripts
+PATH=@@BIN@@:@@SCRIPT@@:$PATH
+export PATH
+
+# Status file locations
+use_patch="/home/irlp/local/patchon"
+use_irlp="/home/irlp/local/active"
+use_echo="/home/irlp/local/we_really_dont_know_yet"
+
+# Command line for fm_beep command
+do_normal="tones 784 75 10 1318 75 10 1046 75 10"
+do_patch="tones 1046 75 10"
+do_irlp="tones 784 75 10 1318 75 10 1046 75 120 784 120 20"
+do_echo="tones 784 75 10 1318 75 10 1046 75 120 1318 120 20"
+
+# Determine repeater state
+cmd="$do_normal"
+
+if [ -f "$use_patch" ]; then 
+    cmd="$do_patch"
+fi
+
+if [ -f "$use_irlp" ]; then
+    cmd="$do_irlp"
+fi
+
+if [ -f "$use_echo" ]; then
+    cmd="$do_echo"
+fi
+
+# Execute the command
+eval "$cmd"
+
