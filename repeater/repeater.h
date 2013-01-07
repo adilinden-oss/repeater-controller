@@ -29,6 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define VERSION     "20130106"
+
 /* The parallel port input pins
  * 
  * Pin          Hex     Purpose     Active

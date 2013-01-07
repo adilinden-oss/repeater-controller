@@ -32,16 +32,18 @@
 #include <string.h>
 #include <stdio.h>
 #include "portctl_lib.h"
+#include "log.h"
 #include "repeater.h"
+
+#define PROG    "portctl"
 
 static char *usage =
     "Usage: portctl [OPTION] CMD [CMD ...]\n"
     "Alter IRLP port state.\n"
+    "   -l      log to syslog\n"
     "   -v      clutter the screen\n"
     "   -h      display this help and exit\n"
     "Copyright (c) 2013, Adi Linden <adi@adis.ca>\n";
-
-int verbose = 0;
 
 int main(int argc, char *argv[])
 {
@@ -54,21 +56,24 @@ int main(int argc, char *argv[])
         }
         if (!strcmp(argv[1], "-v")) {
             verbose = 1;
-            ++argc;     /* Offset for lack of value */
-            --argv;     /* Needs to be last test!   */
         }
-        argc -= 2;
-        argv += 2;
+        if (!strcmp(argv[1], "-l")) {
+            logging = 1;
+        }
+        --argc;
+        ++argv;
     }
 
-    fprintf(stderr, "%i \n", argc);
-    fprintf(stderr, "%s \n", argv[0]);
-
-    /* Perform command */
     if (argc <  2) {
         fprintf(stderr, "No valid command provided\n");
         return -1;
     }
+
+    /* Open syslog */
+    if (logging)
+        open_syslog(PROG);
+
+    /* Perform command */
     while (argc >  1) {
         if (!strcmp(argv[1], "key"))
             key();

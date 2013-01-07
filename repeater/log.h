@@ -27,17 +27,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-int unkey();
-int key();
-int keyup();
-int unmute();
-int mute();
-int ctcssoff();
-int ctcsson();
-int fanoff();
-int aux4off();
-int fanon();
-int aux4on();
-int aux5off();
-int aux5on();
-int portctl(char mask, int state, char *name);
+extern int verbose;
+extern int logging;
+
+void do_log(char *str);
+void timestamp(char *buf, int sz);
+void open_syslog(char *nam);
+void write_syslog(char *str);

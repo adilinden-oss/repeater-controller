@@ -8,25 +8,29 @@
 # Source the common variables
 include ../Common.mk
 
-#CFLAGS      += -g
-LDFLAGS     += -lm
+#CFLAGS          += -g
+LDFLAGS         += -lm
 
-PROGRAMS    = repeater portctl
-SCRIPTS     = repeater_cronjob repeater_crontab repeater_init courtesy ider
+PROGRAMS        = repeater portctl portread
+SCRIPTS         = repeater_init courtesy ider
 
 # Objects portctl
-lib_obj     = portctl_lib.o irlpdev.o
-repeat_obj  = $(lib_obj) repeater.o
-portctl_obj = $(lib_obj) portctl.o
+lib_obj         = portctl_lib.o irlpdev.o log.o
+repeat_obj      = $(lib_obj) repeater.o
+portctl_obj     = $(lib_obj) portctl.o
+portread_obj    = $(lib_obj) portread.o
 
 # Build rules
-all:        $(PROGRAMS)
+all:            $(PROGRAMS)
 
-repeater:   $(repeat_obj)
+repeater:       $(repeat_obj)
 	$(LINK) $(repeat_obj)
 
-portctl:    $(portctl_obj)
+portctl:        $(portctl_obj)
 	$(LINK) $(portctl_obj)
+
+portread:       $(portread_obj)
+	$(LINK) $(portread_obj)
 
 # Source the common install scripts
 include ../Install.mk

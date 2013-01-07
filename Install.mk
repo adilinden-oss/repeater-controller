@@ -4,7 +4,7 @@
 #
 
 # Installation rules
-install:    install-bin install-scripts
+install:    all install-bin install-scripts
 
 install-bin:
 	@echo "Installing binaries in $(BINDIR) ..."
@@ -13,15 +13,11 @@ install-bin:
         echo "$(INSTALL) -m 755 $${file} $(BINDIR)/$${file}"; \
         $(INSTALL) -m 755 $${file} $(BINDIR)/$${file}; \
     done; \
-    if [ `id -u` != 0 ]; then \
-        echo "\`make install' should be run as root!"; \
-    else \
-        echo "Setting ownership and permissions ..."; \
-        for file in $(PROGRAMS); do \
-            echo "chown $(USER).$(USER) $(BINDIR)/$${file}"; \
-            chown $(USER).$(USER) $(BINDIR)/$${file}; \
-        done; \
-    fi
+    echo "Setting ownership and permissions ..."; \
+    for file in $(PROGRAMS); do \
+        echo "chown $(USER).$(USER) $(BINDIR)/$${file}"; \
+        chown $(USER).$(USER) $(BINDIR)/$${file}; \
+    done; \
 
 install-scripts:
 	@echo "Installing scripts in $(SCRIPTDIR) ..."

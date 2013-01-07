@@ -30,10 +30,9 @@
  */
 
 #include <stdio.h>
-#include <time.h>
-#include <sys/time.h>
 #include "portctl_lib.h"
 #include "irlpdev.h"
+#include "log.h"
 #include "repeater.h"
 
 /*
@@ -179,7 +178,7 @@ int aux5off()
 {
     int pin = LOW;
     char mask = AUX5;
-    portctl(mask, pin, "aux5on");
+    portctl(mask, pin, "aux5off");
     return OFF;
 }
 
@@ -198,13 +197,10 @@ int portctl(char mask, int pin, char *name)
 {
     unsigned char out;
     unsigned char c[2];
-    int sztime = 40;
-    char time[sztime];
+    char str[255];              /* String for logging */
 
-    if (verbose) {
-        timestamp(time, sztime);
-        fprintf(stdout,"[%s] Doing: %s\n", time, name);
-    }
+    sprintf(str, "Doing: %s", name);
+    do_log(str);
 
     /* Open the port */
     if ( irlpdev_open() < 0 ) {
@@ -224,15 +220,4 @@ int portctl(char mask, int pin, char *name)
 
     return pin;
 } 
-
-/* 
- * update timestamp 
- */
-void timestamp(char *buf, int sz)
-{
-    struct timeval tv;
-
-    if( gettimeofday(&tv, NULL) < 0 ) buf[0] = 0;
-    strftime(buf, sz, "%b %d %H:%M:%S", localtime(&tv.tv_sec));
-}
 

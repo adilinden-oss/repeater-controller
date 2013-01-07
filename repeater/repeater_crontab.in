@@ -1,6 +1,0 @@
-SHELL=/bin/bash
-TERM=xterm
-
-# This runs the repeater_cronjob every minute
-* * * * * @@SCRIPT@@/repeater_cronjob
-

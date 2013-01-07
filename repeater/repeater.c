@@ -35,7 +35,11 @@
 #include <sys/time.h>
 #include "portctl_lib.h"
 #include "irlpdev.h"
+#include "log.h"
 #include "repeater.h"
+
+/* Our program name */
+#define PROG        "repeater"
 
 /* Default timing values */
 /* NOTE: all times are in millseconds */
@@ -49,27 +53,28 @@
 #define IDYIELD     480000
 
 /* External scripts */
-#define BEEP_SCRIPT "courtesy.sh"
-#define IDER_SCRIPT "ider.sh"
+#define BEEP_SCRIPT "courtesy"
+#define IDER_SCRIPT "ider"
 
 static char *usage =
-    "Usage: repeater [OPTION]\n"
+    "Usage: " PROG " [OPTION]\n"
     "The repeater controller.\n"
+    "   -l      log to syslog\n"
     "   -v      clutter the screen\n"
     "   -h      display this help and exit\n"
     "Copyright (c) 2013, Adi Linden <adi@adis.ca>\n";
 
-int verbose = 0;
-
 /* Beep using external script */
 void beep(void)
 {
+    do_log("Executing: " BEEP_SCRIPT);
     system(BEEP_SCRIPT);
 }
 
 /* Beep using external script */
 void ider(void)
 {
+    do_log("Executing: " IDER_SCRIPT);
     system(IDER_SCRIPT);
 }
 
@@ -87,7 +92,7 @@ int main(int argc, char *argv[])
     int irlpdev = 0;
     unsigned char c[2];          /* Returned string from parallel port */
 
-    int ctflag = 0;              /* Flag when the Courtesy tone has played */
+    int ctflag = 1;              /* Flag when the Courtesy tone has played */
     //int idflag =0;               /* Flag when the ID has played */
     int muteflag = 0;            /* Flag when the muter is on */
     int keyflag = 0;             /* Flag when the system (AUX1) is keyed */
@@ -125,13 +130,19 @@ int main(int argc, char *argv[])
         }
         if (!strcmp(argv[1], "-v")) {
             verbose = 1;
-            ++argc;     /* Offset for lack of value */
-            --argv;     /* Needs to be last test!   */
         }
-        argc -= 2;
-        argv += 2;
+        if (!strcmp(argv[1], "-l")) {
+            logging = 1;
+        }
+        --argc;
+        ++argv;
     }
-        
+
+    /* Open syslog */
+    if (logging)
+        open_syslog(PROG);
+    do_log("Starting: " PROG ", version " VERSION);
+
     /* Opens the /dev/irlp-port device, read/write. This is the communication
      * Channel to the IRLP hardware from the software 
      */
@@ -145,6 +156,7 @@ int main(int argc, char *argv[])
     tim.tv_nsec = 5000000;
 
     keyflag = unkey(irlpdev);
+    muteflag = mute(irlpdev);
 
     while (1) {
         /* Reads the input and output bit from the port */
@@ -185,7 +197,7 @@ int main(int argc, char *argv[])
          */
         if (COS) {
             if (dtmf >= 1 && dtmf <= 17) {
-              if (!muteflag)
+                if (!muteflag)
                     muteflag = mute(irlpdev);
                 mutetimer = dnow();
             } else {
