@@ -5,6 +5,12 @@ The Repeater Controller
 This is a PC based repeater controller which relies on the IRLP board as
 hardware interface with the radio.
 
+Credit
+------
+The repeater-controller is derived from previous work done by:
+- David Cameron VE7LTD <http://www.irlp.net>
+- Randy Hammock KC6HUR
+
 History
 ------
 The original code was a single source file, ht-ct.c, provided by David Cameron 
