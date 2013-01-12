@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Adi Linden <adi@adis.on.ca>
+/* Copyright (c) 2004-2004-2013, Adi Linden <adi@adis.ca>
  * All rights reserved.
  *
  * This code is derived from software contributed by Dave Cameron.

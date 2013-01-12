@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2013, Adi Linden <adi@adis.on.ca>
+# Copyright (c) 2004-2013, Adi Linden <adi@adis.ca>
 # All rights reserved.
 #   
 # Redistribution and use in source and binary forms, with or without 
@@ -63,16 +63,19 @@ fi
 PATH=@@BIN@@:@@SCRIPT@@:$PATH
 export PATH
 
+# Volume
+volume="25"
+
 # Status file locations
 use_patch="/home/irlp/local/patchon"
 use_irlp="/home/irlp/local/active"
 use_echo="/home/irlp/local/we_really_dont_know_yet"
 
 # Command line for fm_beep command
-do_normal="tones 784 75 10 1318 75 10 1046 75 10"
-do_patch="tones 1046 75 10"
-do_irlp="tones 784 75 10 1318 75 10 1046 75 120 784 120 20"
-do_echo="tones 784 75 10 1318 75 10 1046 75 120 1318 120 20"
+do_normal="tones -a $volume 784 75 10 1318 75 10 1046 75 10"
+do_patch="tones -a $volume 1046 75 10"
+do_irlp="tones -a $volume 784 75 10 1318 75 10 1046 75 120 784 120 20"
+do_echo="tones -a $volume 784 75 10 1318 75 10 1046 75 120 1318 120 20"
 
 # Determine repeater state
 cmd="$do_normal"

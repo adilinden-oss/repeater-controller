@@ -1,7 +1,7 @@
 #
 # Common includes for our project
 #
-# Copyright (c) 2013, Adi Linden <adi@adis.ca>
+# Copyright (c) 2004-2013, Adi Linden <adi@adis.ca>
 # All rights reserved.
 #
 

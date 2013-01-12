@@ -51,12 +51,16 @@ default as it allows for mixing of multiple sound sources.
 
 Features
 --------
-To be written...
+- Control via IRLP board
+- IRLP aware and compatible
+- Hangtimer
+- Courtesy tone
+- CW ID
 
 ToDo
 ----
 Some of the things I'd still like to do
 
-- IDer
 - Man pages and other documentation
 - Configurable timing parameters via command line or config file
+

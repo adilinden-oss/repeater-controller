@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Adi Linden <adi@adis.ca>
+/* Copyright (c) 2004-2013, Adi Linden <adi@adis.ca>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -32,6 +32,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>      /* waitpid() child handling */
+#include <sys/wait.h>       /* waitpid() child handling */
 #include <sys/time.h>
 #include "portctl_lib.h"
 #include "irlpdev.h"
@@ -64,18 +66,72 @@ static char *usage =
     "   -h      display this help and exit\n"
     "Copyright (c) 2013, Adi Linden <adi@adis.ca>\n";
 
-/* Beep using external script */
-void beep(void)
+
+/* Execute external script in a non-blocking fashion */
+void fork_script(pid_t *pid, const char *script)
 {
-    do_log("Executing: " BEEP_SCRIPT);
-    system(BEEP_SCRIPT);
+    *pid = fork();
+    if (*pid == 0) {
+        system(script);
+        exit(0);
+    }
+    if (*pid < 0) {
+        exit(-1);
+    }
 }
 
 /* Beep using external script */
-void ider(void)
+void do_ct(pid_t *pid)
 {
-    do_log("Executing: " IDER_SCRIPT);
-    system(IDER_SCRIPT);
+    char m[30];
+
+    if (!*pid) {
+        fork_script(pid, BEEP_SCRIPT);
+        sprintf(m, "Script: [%d] " BEEP_SCRIPT, *pid);
+        do_log(m);
+    }
+    else {
+        do_log("Failed: " BEEP_SCRIPT);
+    }
+}
+
+/* Beep using external script */
+void do_id(pid_t *pid)
+{
+    char m[30];
+
+    if (!*pid) {
+        fork_script(pid, IDER_SCRIPT);
+        sprintf(m, "Script: [%d] " IDER_SCRIPT, *pid);
+        do_log(m);
+    }
+    else {
+        do_log("Failed: " IDER_SCRIPT);
+    }
+}
+
+/* Handle forked scripts */
+void check_script(pid_t *pid)
+{
+    int s;
+    pid_t p;
+    char m[30];
+
+    /* If pid is not 0 we have a child */
+    if (*pid) {
+
+        /* 
+         * waitpid() returns the pid of the child that terminated 
+         * the pid is passed by reference, set it 0 to indicate
+         * no more child is present
+         */
+        p = waitpid(*pid, &s, WNOHANG);
+        if (p == *pid) {
+            sprintf(m, "Script: [%d] exited", *pid);
+            do_log(m);
+            *pid = 0;
+        }
+    }
 }
 
 /* Timing source */
@@ -92,11 +148,18 @@ int main(int argc, char *argv[])
     int irlpdev = 0;
     unsigned char c[2];          /* Returned string from parallel port */
 
-    int ctflag = 1;              /* Flag when the Courtesy tone has played */
-    //int idflag =0;               /* Flag when the ID has played */
+    pid_t ctpid = 0;             /* Keep track of spawned courtesy script */
+    pid_t idpid = 0;             /* Kepp track of spawned ider script */
+
+    int idstate = 0;             /* Determines state of ID */
+    int ctbusy = 0;              /* Flag while courtesy script executing */
+    int idbusy = 0;              /* Flag while id script executing */
+    int ctflag = 1;              /* Flag when the courtesy tone has played */
+    int idflag = 1;              /* Flag when the ID tone has played */
     int muteflag = 0;            /* Flag when the muter is on */
     int keyflag = 0;             /* Flag when the system (AUX1) is keyed */
     int shortkeyflag = 0;        /* Flag when the shortkey feature is active */
+    int forcekeyflag = 0;        /* Flag when the forcekey feature is active */
     int fanflag = 0;             /* Flag when the fan is active */
     int irlpflag = 0;            /* Flag when IRLP keyed and is active */
 
@@ -115,8 +178,8 @@ int main(int argc, char *argv[])
     double cttimer = 0;          /* Definition of the timer to measure time 
                                     bewteen unkey and the playing of the 
                                     courtesy tone */
-    //double idtimer = 0;          /* Definition of the timer to measure time
-    //                                between keyup and the playing of the ID */
+    double idtimer = 0;          /* Definition of the timer to measure time
+                                    between keyup and the playing of the ID */
     double shortkeytimer = 0;    /* Definition of the timer to measure time 
                                     bewteen mute on and mute off */
     double fantimer = 0;         /* Definition of the time to measure time
@@ -158,7 +221,13 @@ int main(int argc, char *argv[])
     keyflag = unkey(irlpdev);
     muteflag = mute(irlpdev);
 
+    /* Just loop forever now */
     while (1) {
+
+        /*
+         * Get input
+         */
+
         /* Reads the input and output bit from the port */
         if (read_irlpdev(c, 2) != 2)
             fprintf(stderr, "Can't read parallel port");
@@ -201,8 +270,10 @@ int main(int argc, char *argv[])
                     muteflag = mute(irlpdev);
                 mutetimer = dnow();
             } else {
-                if (((dnow() - mutetimer) > MUTETIME) && muteflag)
-                    muteflag = unmute(irlpdev);
+                if (muteflag) {
+                    if (((dnow() - mutetimer) > MUTETIME) && muteflag)
+                        muteflag = unmute(irlpdev);
+                }
             }
         }
 
@@ -227,8 +298,8 @@ int main(int argc, char *argv[])
             hangtimer = dnow();
             cttimer = dnow();
             ctflag = 0;
+            idflag = 0;
         }
-
         /* Determines if the IRLP software has keyed the radio, and sets the 
          * hangtimer, and keys up the radio. 
          */
@@ -240,7 +311,7 @@ int main(int argc, char *argv[])
             hangtimer = dnow();
             cttimer = dnow();
             irlpflag = 1;
-            ctflag = 0;
+            idflag = 0;
         }
 
         /*
@@ -267,20 +338,107 @@ int main(int argc, char *argv[])
             /* If IRLP was last to drop cttimer is shorter because IRLP
              * has a longer delay before unkey
              */
-            if (!ctflag && irlpflag && dnow() - cttimer > CTTIMEI) {
-                /* Plays the courtesy tone */
-                beep();
-                ctflag = 1;
-                irlpflag = 0;
+            if (!ctflag && !ctpid && irlpflag && dnow() - cttimer > CTTIMEI) {
+                do_ct(&ctpid);
+                ctbusy = 1;
+                forcekeyflag = 1;
             }
             /* If COS was last to drop cttimer is longer */
-            if (!ctflag && dnow() - cttimer > CTTIME) {
-                /* Plays the courtesy tone */
-                beep();
-                ctflag = 1;
+            if (!ctflag && !ctpid && !irlpflag && dnow() - cttimer > CTTIME) {
+                do_ct(&ctpid);
+                ctbusy = 1;
+                forcekeyflag = 1;
             }
         }
+        /* Handle forked child script */
+        check_script(&ctpid);
+        if (!ctpid && ctbusy && forcekeyflag) {
+            ctbusy = 0;
+            ctflag = 1;
+            forcekeyflag = 0;
+        }
 
+        /*
+         * Play the ID
+         *
+         * The idflag is cleared by keyup and set upon playing of ID. We
+         * cannot use the keyfkag in its case because the keyup to play
+         * ID would then trigger the ID requirement causing an endless loop.
+         *
+         * The idbusy flag is required to properly detect end of script
+         * execution and setting and clearing of flags associated with that
+         * event. It ensure this is a one shot event at the end of script
+         * execution.
+         *
+         * The idstate is more then just true or false here. We track the
+         * following states
+         *
+         *      0   idle
+         *      1   immediate ID pending
+         *      2   delayed ID pending
+         *      3   ID played
+         */
+
+        /* ID requirement from idle */
+        if (idstate == 0 && !idflag) {
+            idstate = 1;
+            idtimer = dnow();
+            do_log("Trigger: immediate ID");
+        }
+        /* Repeated ID requirement */
+        if (idstate == 3 && !idflag) {
+            idstate = 2;
+            idtimer = dnow();
+            do_log("Trigger: delayed ID");
+        }
+        /* Immediate ID required */
+        if (idstate == 1 && !idpid) {
+            /* Tuck behind courtesy tone */
+            if (!COS && !irlpkey && keyflag && ctflag) {
+                do_id(&idpid);
+                idbusy = 1;
+                forcekeyflag = 1;
+            }
+            /* ID if we timeout */
+            if (dnow() - idtimer > IDYIELD) {
+                keyflag = keyup(irlpdev);
+                do_id(&idpid);
+                idbusy = 1;
+                forcekeyflag = 1;
+            }
+        }
+        /* Delayed ID required */
+        if (idstate == 2 && !idpid) {
+            /* Tuck behind courtesy tone */
+            if (!COS && !irlpkey && keyflag && ctflag && 
+                    dnow() - idtimer > IDTIME) {
+                do_id(&idpid);
+                idbusy = 1;
+                forcekeyflag = 1;
+            }
+            /* ID if we timeout */
+            if (dnow() - idtimer > IDTIME + IDYIELD) {
+                keyflag = keyup(irlpdev);
+                do_id(&idpid);
+                idbusy = 1;
+                forcekeyflag = 1;
+            }
+        }
+        /* Reset ID */
+        if (idstate == 3 && dnow() - idtimer > IDTIME + IDYIELD) {
+            idstate = 0;
+            do_log("Trigger: reset ID");
+        }
+
+        /* Handle forked child script */
+        check_script(&idpid);
+        if (!idpid && idbusy && forcekeyflag) {
+            idbusy = 0;
+            idflag = 1;
+            idstate = 3;
+            forcekeyflag = 0;
+        }
+        
         /*
          * Events that UNKEY
          */
@@ -289,23 +447,30 @@ int main(int argc, char *argv[])
          * we drop the transmitter. It also makes sure there is no courtesy 
          * tones. 
          */
-        if (!COS && !irlpkey && keyflag && !shortkeyflag) {
+        if (!COS && !irlpkey && !forcekeyflag && keyflag && !shortkeyflag) {
             keyflag = unkey(irlpdev);
             ctflag = 1;
+            idflag = 1;
             irlpflag = 0;
             shortkeyflag = 0;
+            do_log("Shortkey detected");
         }
-
         /* When the hangtime is exceeded, the radio is unkeyed, and the 
          * shortkeytimer is reset. 
          */
-        if (!COS && !irlpkey && keyflag && (dnow() - hangtimer > HANGTIME)) {
+        if (!COS && !irlpkey && !forcekeyflag && 
+                keyflag && (dnow() - hangtimer > HANGTIME)) {
             keyflag = unkey(irlpdev);
             irlpflag = 0;
             shortkeyflag = 0;
         }
 
+        /*
+         * Miscellaneous loop tasks
+         */
+
         fflush(stdout);
+        fflush(stderr);
 
         /* This is a delay timer to keep this from sucking 100% processor, 
          * important in any loop. 

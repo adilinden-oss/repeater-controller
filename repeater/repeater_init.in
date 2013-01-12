@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2004, Adi Linden <adi@adis.on.ca>
+# Copyright (c) 2004-2013, Adi Linden <adi@adis.ca>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without 
@@ -68,8 +68,31 @@ TERM=xterm
 EOF
 }
 
+start_pre_cmd()
+{
+    # Set port to desired values before starting repeater
+    @@BIN@@/portctl -l unkey
+    @@BIN@@/portctl -l mute
+    @@BIN@@/portctl -l fanoff
+    @@BIN@@/portctl -l aux5off
+    @@BIN@@/portctl -l ctcsson
+}
+
+stop_post_cmd()
+{
+    # Set port to desired values after stopping repeater
+    @@BIN@@/portctl -l unkey
+    @@BIN@@/portctl -l mute
+    @@BIN@@/portctl -l fanoff
+    @@BIN@@/portctl -l aux5off
+    @@BIN@@/portctl -l ctcsson
+}
+
 start()
 {
+    # Run portctl commands prior to starting repeater
+    start_pre_cmd
+
     # Installing  crontab which starts and monitors process
     echo -ne "Installing $crontab ... \n"
     if [ "$ourid" != "0" ]; then
@@ -120,11 +143,7 @@ stop()
     done
 
     # Set outputs to safe values
-    @@BIN@@/portctl -l unkey
-    @@BIN@@/portctl -l mute
-    @@BIN@@/portctl -l fanoff
-    @@BIN@@/portctl -l aux5off
-    #@@BIN@@/portctl -l ctcsson
+    stop_post_cmd
 }
     
 status()

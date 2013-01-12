@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Adi Linden <adi@adis.on.ca>
+/* Copyright (c) 2004-2013, Adi Linden <adi@adis.ca>
  * All rights reserved.
  *
  * This code is derived from software contributed by Dave Cameron.
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
             unmute();
         if (!strcmp(argv[1], "ctcsson"))
             ctcsson();
-        if (!strcmp(argv[1], "ctcssff"))
+        if (!strcmp(argv[1], "ctcssoff"))
             ctcssoff();
         if (!strcmp(argv[1], "fanon"))
             fanon();

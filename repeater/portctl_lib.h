@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, Adi Linden <adi@adis.on.ca>
+/* Copyright (c) 2004, Adi Linden <adi@adis.ca>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
