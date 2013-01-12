@@ -61,6 +61,7 @@ ToDo
 ----
 Some of the things I'd still like to do
 
+- Debug command line switch to show flags while events occur
 - Man pages and other documentation
 - Configurable timing parameters via command line or config file
 

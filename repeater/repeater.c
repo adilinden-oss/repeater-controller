@@ -51,8 +51,9 @@
 #define MUTETIME    1000
 #define CTTIME      1000
 #define CTTIMEI     300
-#define IDTIME      1200000
-#define IDYIELD     480000
+#define IDPERIOD    1200000
+#define IDWAIT      480000
+#define IDKEYDLY    100
 
 /* External scripts */
 #define BEEP_SCRIPT "courtesy"
@@ -72,7 +73,9 @@ void fork_script(pid_t *pid, const char *script)
 {
     *pid = fork();
     if (*pid == 0) {
+        usleep(IDKEYDLY * 1000);
         system(script);
+        usleep(IDKEYDLY * 1000);
         exit(0);
     }
     if (*pid < 0) {
@@ -313,6 +316,14 @@ int main(int argc, char *argv[])
             irlpflag = 1;
             idflag = 0;
         }
+        /* The forcekeyflag does just that, keys programmatically */
+        if(forcekeyflag) {
+            if (!keyflag) {
+                keyflag = keyup(irlpdev);
+                shortkeytimer = dnow();
+            }
+            hangtimer = dnow();
+        }
 
         /*
          * Shortkey feature
@@ -321,8 +332,9 @@ int main(int argc, char *argv[])
         /* Once the shortkey timer is exceeded, it stops the shortkey 
          * features from unkeying the radio.
          */
-        if (COS || irlpkey) { 
+        if (COS || irlpkey || forcekeyflag) { 
             if (!shortkeyflag && dnow() - shortkeytimer > SHORTKEY) {
+                do_log("Shortkey exceeded");
                 shortkeyflag = 1;
             }
         }
@@ -332,9 +344,9 @@ int main(int argc, char *argv[])
          */
 
         /* Once COS is dropped, and the cttimer is exceeded, we play the 
-         * courtesy tone 
+         * courtesy tone. Do not CT over ID. 
          */
-        if (!COS && !irlpkey) {
+        if (!COS && !irlpkey && !idbusy) {
             /* If IRLP was last to drop cttimer is shorter because IRLP
              * has a longer delay before unkey
              */
@@ -383,13 +395,13 @@ int main(int argc, char *argv[])
         if (idstate == 0 && !idflag) {
             idstate = 1;
             idtimer = dnow();
-            do_log("Trigger: immediate ID");
+            do_log("ID: immediate");
         }
         /* Repeated ID requirement */
         if (idstate == 3 && !idflag) {
             idstate = 2;
-            idtimer = dnow();
-            do_log("Trigger: delayed ID");
+            //idtimer = dnow();
+            do_log("ID: delayed");
         }
         /* Immediate ID required */
         if (idstate == 1 && !idpid) {
@@ -398,36 +410,38 @@ int main(int argc, char *argv[])
                 do_id(&idpid);
                 idbusy = 1;
                 forcekeyflag = 1;
+                idtimer = dnow();
             }
             /* ID if we timeout */
-            if (dnow() - idtimer > IDYIELD) {
-                keyflag = keyup(irlpdev);
+            if (dnow() - idtimer > IDWAIT) {
                 do_id(&idpid);
                 idbusy = 1;
                 forcekeyflag = 1;
+                idtimer = dnow();
             }
         }
         /* Delayed ID required */
         if (idstate == 2 && !idpid) {
             /* Tuck behind courtesy tone */
             if (!COS && !irlpkey && keyflag && ctflag && 
-                    dnow() - idtimer > IDTIME) {
+                    dnow() - idtimer > IDPERIOD) {
                 do_id(&idpid);
                 idbusy = 1;
                 forcekeyflag = 1;
+                idtimer = dnow();
             }
             /* ID if we timeout */
-            if (dnow() - idtimer > IDTIME + IDYIELD) {
-                keyflag = keyup(irlpdev);
+            if (dnow() - idtimer > IDPERIOD + IDWAIT) {
                 do_id(&idpid);
                 idbusy = 1;
                 forcekeyflag = 1;
+                idtimer = dnow();
             }
         }
         /* Reset ID */
-        if (idstate == 3 && dnow() - idtimer > IDTIME + IDYIELD) {
+        if (idstate == 3 && dnow() - idtimer > IDPERIOD + IDWAIT) {
             idstate = 0;
-            do_log("Trigger: reset ID");
+            do_log("ID: reset");
         }
 
         /* Handle forked child script */
@@ -453,7 +467,6 @@ int main(int argc, char *argv[])
             idflag = 1;
             irlpflag = 0;
             shortkeyflag = 0;
-            do_log("Shortkey detected");
         }
         /* When the hangtime is exceeded, the radio is unkeyed, and the 
          * shortkeytimer is reset. 
