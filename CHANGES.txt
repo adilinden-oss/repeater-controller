@@ -3,6 +3,10 @@ Changelog
 =========
 
 Jan 12 2013
+o Cleaned up forcekey by placing it under events that key
+o Renamed defines for id timing
+
+Jan 11 2013
 o Added volume setting to courtesy and ider scripts
 o Added fully functional ider to repeater
 o Changed execution of scripts from blocking to non-blocking
